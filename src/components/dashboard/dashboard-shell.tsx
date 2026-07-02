@@ -8,7 +8,7 @@ import {
   Sparkles, Stethoscope, Pill, ClipboardList, Activity,
   Users, UserCheck, ShieldCheck, HeartPulse, LogOut, Sun, Moon,
   Bell, AlertTriangle, Menu, X, ChevronLeft, ChevronRight,
-  LayoutDashboard, Bed, Clock, Radio, Truck, FileBarChart2, Settings, AlertCircle, Check
+  LayoutDashboard, Bed, Clock, Radio, Truck, FileBarChart2, Settings, AlertCircle, Check, Package
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useThemeStore } from '@/stores/theme-store';
@@ -22,6 +22,7 @@ import OverviewTab from './overview-tab';
 import PatientsTab from './patients-tab';
 import DoctorsTab from './doctors-tab';
 import PharmacyTab from './pharmacy-tab';
+import InventoryTab from './inventory-tab';
 import BedsTab from './beds-tab';
 import QueueTab from './queue-tab';
 import SurveillanceTab from './surveillance-tab';
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { id: 'Patients', label: 'Patient Registry', icon: Users, component: PatientsTab },
   { id: 'Doctors', label: 'Doctors & Staff', icon: Stethoscope, component: DoctorsTab },
   { id: 'Pharmacy', label: 'Dispensary Stock', icon: Pill, component: PharmacyTab },
+  { id: 'Inventory', label: 'Stock Intelligence', icon: Package, component: InventoryTab },
   { id: 'Wards & Beds', label: 'Bed Wards Twin', icon: Bed, component: BedsTab },
   { id: 'Queue', label: 'Live OPD Queue', icon: Clock, component: QueueTab },
   { id: 'Surveillance', label: 'Catchment Twin', icon: Radio, component: SurveillanceTab },
@@ -51,6 +53,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'Patients',
     'Doctors',
     'Pharmacy',
+    'Inventory',
     'Wards & Beds',
     'Queue',
     'Surveillance',
@@ -63,6 +66,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'Overview',
     'Patients',
     'Doctors',
+    'Inventory',
     'Wards & Beds',
     'Queue',
     'Reports',
@@ -70,17 +74,20 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   nurse: [
     'Overview',
     'Patients',
+    'Inventory',
     'Wards & Beds',
     'Queue',
   ],
   pharmacist: [
     'Overview',
     'Pharmacy',
+    'Inventory',
     'Reports',
   ],
   lab_technician: [
     'Overview',
     'Patients',
+    'Inventory',
     'Reports',
   ],
   anm: [
@@ -96,6 +103,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   administrator: [
     'Overview',
     'Doctors',
+    'Inventory',
     'Settings',
   ],
 };

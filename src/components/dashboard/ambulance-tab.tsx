@@ -37,6 +37,7 @@ export default function AmbulanceTab() {
               status: 'En Route' as const,
               currentDestination: `${dispatchVillage} Village`,
               eta: Math.floor(8 + Math.random() * 15),
+              dispatchTime: new Date().getTime(),
             };
           }
           return a;
@@ -47,20 +48,40 @@ export default function AmbulanceTab() {
     }, 1200);
   };
 
-  // Mark vehicle available
+  // Mark vehicle available and deduct fuel based on active duration
   const handleMakeAvailable = (id: string) => {
     setAmbulances(prev =>
       prev.map(a => {
         if (a.id === id) {
+          let fuelConsumed = 15; // default fallback consumption
+          if (a.dispatchTime) {
+            const elapsedSecs = (new Date().getTime() - a.dispatchTime) / 1000;
+            // 1 second real-time = ~1.5% fuel consumption (with a minimum of 6% drop)
+            fuelConsumed = Math.round(Math.max(6, elapsedSecs * 1.5));
+          } else if (a.eta) {
+            fuelConsumed = Math.round(a.eta * 1.2);
+          }
+
+          const newFuel = Math.max(0, a.fuelLevel - fuelConsumed);
+
           return {
             ...a,
             status: 'Available' as const,
             currentDestination: undefined,
             eta: undefined,
+            dispatchTime: undefined,
+            fuelLevel: newFuel,
           };
         }
         return a;
       })
+    );
+  };
+
+  // Refuel simulated vehicle back to 100%
+  const handleRefuel = (id: string) => {
+    setAmbulances(prev =>
+      prev.map(a => (a.id === id ? { ...a, fuelLevel: 100 } : a))
     );
   };
 
@@ -143,13 +164,25 @@ export default function AmbulanceTab() {
               {/* Fleet Action triggers */}
               <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800/80">
                 {amb.status === 'Available' ? (
-                  <button
-                    onClick={() => setSelectedAmbulance(amb)}
-                    className="w-full py-1.5 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-md shadow-teal-500/5 text-[10px]"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-slate-950 stroke-none" />
-                    <span>Dispatch Vehicle</span>
-                  </button>
+                  <div className="flex gap-2 w-full">
+                    <button
+                      onClick={() => setSelectedAmbulance(amb)}
+                      disabled={fuelLevel < 12}
+                      className="flex-1 py-1.5 bg-teal-500 hover:bg-teal-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-md shadow-teal-500/5 text-[10px]"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-slate-950 stroke-none" />
+                      <span>{fuelLevel < 12 ? 'Low Fuel' : 'Dispatch'}</span>
+                    </button>
+                    {fuelLevel < 95 && (
+                      <button
+                        onClick={() => handleRefuel(amb.id)}
+                        className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/15 rounded-lg font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer text-[10px]"
+                      >
+                        <Fuel className="w-3.5 h-3.5" />
+                        <span>Refuel</span>
+                      </button>
+                    )}
+                  </div>
                 ) : amb.status !== 'Maintenance' ? (
                   <button
                     onClick={() => handleMakeAvailable(amb.id)}

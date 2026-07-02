@@ -290,6 +290,7 @@ export interface Ambulance {
   currentDestination?: string;
   eta?: number;
   kmDriven: number;
+  dispatchTime?: number;
 }
 
 // --- Alerts ---

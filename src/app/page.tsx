@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import LoginScreen from '@/components/auth/login-screen';
 import DashboardShell from '@/components/dashboard/dashboard-shell';
+import LandingPage from '@/components/marketing/landing-page';
 
 export default function Home() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [mounted, setMounted] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -21,9 +23,13 @@ export default function Home() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <LoginScreen />;
+  if (isAuthenticated) {
+    return <DashboardShell />;
   }
 
-  return <DashboardShell />;
+  if (showLogin) {
+    return <LoginScreen onBack={() => setShowLogin(false)} />;
+  }
+
+  return <LandingPage onEnterPortal={() => setShowLogin(true)} />;
 }

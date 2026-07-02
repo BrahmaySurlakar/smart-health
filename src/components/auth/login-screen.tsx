@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { UserRole, ROLE_LABELS } from '@/types';
 import {
   Sparkles, Stethoscope, Pill, ClipboardList, Activity,
-  Users, UserCheck, ShieldCheck, HeartPulse, ChevronRight, Fingerprint
+  Users, UserCheck, ShieldCheck, HeartPulse, ChevronRight, Fingerprint, ChevronLeft
 } from 'lucide-react';
 
 const ROLE_ICONS: Record<UserRole, any> = {
@@ -33,7 +33,7 @@ const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   administrator: 'Configure system settings, monitor security logs, and control thresholds.',
 };
 
-export default function LoginScreen() {
+export default function LoginScreen({ onBack }: { onBack?: () => void }) {
   const login = useAuthStore((state) => state.login);
   const [selectedRole, setSelectedRole] = useState<UserRole>('medical_officer');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -51,6 +51,15 @@ export default function LoginScreen() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 via-gray-950 to-black text-white p-4 relative overflow-hidden font-sans">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="absolute top-6 left-6 px-4 py-2 rounded-xl bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer z-50 text-gray-300 hover:text-white"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span>Back to Website</span>
+        </button>
+      )}
       {/* Dynamic Background Accents */}
       <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-teal-500/10 rounded-full blur-3xl -z-10 animate-pulse" />
       <div className="absolute bottom-1/4 right-1/4 w-[450px] h-[450px] bg-emerald-500/10 rounded-full blur-3xl -z-10 animate-pulse delay-700" />

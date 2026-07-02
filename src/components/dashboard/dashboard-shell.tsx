@@ -45,6 +45,61 @@ const NAV_ITEMS = [
   { id: 'Settings', label: 'Alert Settings', icon: Settings, component: SettingsTab },
 ];
 
+const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  medical_officer: [
+    'Overview',
+    'Patients',
+    'Doctors',
+    'Pharmacy',
+    'Wards & Beds',
+    'Queue',
+    'Surveillance',
+    'Vaccinations',
+    'Ambulances',
+    'Reports',
+    'Settings',
+  ],
+  doctor: [
+    'Overview',
+    'Patients',
+    'Doctors',
+    'Wards & Beds',
+    'Queue',
+    'Reports',
+  ],
+  nurse: [
+    'Overview',
+    'Patients',
+    'Wards & Beds',
+    'Queue',
+  ],
+  pharmacist: [
+    'Overview',
+    'Pharmacy',
+    'Reports',
+  ],
+  lab_technician: [
+    'Overview',
+    'Patients',
+    'Reports',
+  ],
+  anm: [
+    'Overview',
+    'Patients',
+    'Vaccinations',
+  ],
+  asha_worker: [
+    'Overview',
+    'Surveillance',
+    'Vaccinations',
+  ],
+  administrator: [
+    'Overview',
+    'Doctors',
+    'Settings',
+  ],
+};
+
 export default function DashboardShell() {
   const { user, logout, login } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
@@ -64,6 +119,19 @@ export default function DashboardShell() {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
+
+  // Compute allowed tabs based on role
+  const allowedTabs = user ? ROLE_PERMISSIONS[user.role] : [];
+
+  // Redirect if current active tab is not allowed for the selected role
+  useEffect(() => {
+    if (user && !allowedTabs.includes(activeTab)) {
+      setActiveTab(allowedTabs[0] || 'Overview');
+    }
+  }, [user, activeTab, allowedTabs]);
+
+  // Filter navigation items
+  const visibleNavItems = NAV_ITEMS.filter((item) => allowedTabs.includes(item.id));
 
   // Initialize notifications from mock generator
   useEffect(() => {
@@ -114,7 +182,7 @@ export default function DashboardShell() {
 
         {/* Sidebar Navigation Items */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1.5 scrollbar-thin">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

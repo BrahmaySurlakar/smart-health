@@ -8,7 +8,7 @@ import {
   Bed as BedIcon, CheckCircle2, UserCheck, AlertTriangle, Hammer, Brush,
   ChevronRight, Users, Trash2, Calendar, FileText, Activity, ArrowUpRight
 } from 'lucide-react';
-import { getBeds, generateWardStats } from '@/data/generators';
+import { getBeds, generateWardStats, getPatients, getDoctors } from '@/data/generators';
 import { Bed, WardStats } from '@/types';
 import { formatDate } from '@/lib/utils';
 
@@ -18,12 +18,66 @@ export default function BedsTab() {
   const [selectedWard, setSelectedWard] = useState<string>('ICU');
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
 
+  // Assignment states
+  const [selectedPatientName, setSelectedPatientName] = useState('');
+  const [selectedDoctorName, setSelectedDoctorName] = useState('');
+  const [assigningDays, setAssigningDays] = useState(3);
+
+  const patientsList = getPatients();
+  const doctorsList = getDoctors();
+
   // Filter beds by active ward
   const filteredBeds = beds.filter((b) => b.ward === selectedWard);
 
   // Ward configuration details
   const activeStats = wardStats.find((w) => w.ward === selectedWard) || {
     total: 0, occupied: 0, available: 0, cleaning: 0, occupancyRate: 0, avgStay: 0
+  };
+
+  // Handle patient assignment
+  const handleAssignPatient = (bedId: string) => {
+    if (!selectedPatientName || !selectedDoctorName) return;
+
+    const admissionDate = new Date();
+    const predictedDischarge = new Date();
+    predictedDischarge.setDate(admissionDate.getDate() + assigningDays);
+
+    const updatedBed: Bed = {
+      id: bedId,
+      number: selectedBed!.number,
+      ward: selectedBed!.ward,
+      status: 'Occupied' as const,
+      patient: selectedPatientName,
+      doctor: selectedDoctorName,
+      admissionDate: admissionDate.toISOString(),
+      predictedDischarge: predictedDischarge.toISOString(),
+    };
+
+    setBeds((prev) =>
+      prev.map((b) => (b.id === bedId ? updatedBed : b))
+    );
+
+    // Update stats
+    setWardStats((prev) =>
+      prev.map((w) => {
+        if (w.ward === selectedWard) {
+          const newOccupied = w.occupied + 1;
+          const newAvailable = Math.max(0, w.available - 1);
+          return {
+            ...w,
+            occupied: newOccupied,
+            available: newAvailable,
+            occupancyRate: Math.round((newOccupied / w.total) * 100),
+          };
+        }
+        return w;
+      })
+    );
+
+    // Reset selection values & keep the updated occupied bed active
+    setSelectedPatientName('');
+    setSelectedDoctorName('');
+    setSelectedBed(updatedBed);
   };
 
   // Handle bed release (discharge patient)
@@ -274,11 +328,65 @@ export default function BedsTab() {
                       </div>
                     </div>
                   </div>
+                ) : selectedBed.status === 'Available' ? (
+                  <div className="space-y-3 border border-gray-100 dark:border-zinc-800/80 p-3 rounded-2xl bg-gray-50/50 dark:bg-zinc-950/20">
+                    <h5 className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">Assign Patient to Bed</h5>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[9px] text-gray-400 uppercase font-bold">Select Patient</label>
+                        <select
+                          value={selectedPatientName}
+                          onChange={(e) => setSelectedPatientName(e.target.value)}
+                          className="w-full text-xs p-1.5 rounded-lg border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200"
+                        >
+                          <option value="">-- Choose Patient --</option>
+                          {patientsList.map(p => (
+                            <option key={p.id} value={p.name}>{p.name} ({p.gender}, Age {p.age})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-gray-400 uppercase font-bold">Lead Clinician</label>
+                        <select
+                          value={selectedDoctorName}
+                          onChange={(e) => setSelectedDoctorName(e.target.value)}
+                          className="w-full text-xs p-1.5 rounded-lg border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200"
+                        >
+                          <option value="">-- Choose Doctor --</option>
+                          {doctorsList.map(d => (
+                            <option key={d.id} value={d.name}>{d.name} ({d.specialty})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-gray-400 uppercase font-bold">Est. Stay Duration</label>
+                        <select
+                          value={assigningDays}
+                          onChange={(e) => setAssigningDays(Number(e.target.value))}
+                          className="w-full text-xs p-1.5 rounded-lg border border-gray-250 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200"
+                        >
+                          <option value={2}>2 Days</option>
+                          <option value={3}>3 Days</option>
+                          <option value={5}>5 Days</option>
+                          <option value={7}>7 Days</option>
+                          <option value={10}>10 Days</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAssignPatient(selectedBed.id)}
+                      disabled={!selectedPatientName || !selectedDoctorName}
+                      className="w-full py-2 bg-teal-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 shadow-md shadow-teal-500/10 cursor-pointer mt-1"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Confirm Assignment</span>
+                    </button>
+                  </div>
                 ) : (
                   <div className="text-center py-6 text-gray-400 dark:text-zinc-500">
-                    <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-emerald-500 opacity-60" />
-                    <p className="text-xs font-medium">This bed is currently empty.</p>
-                    <p className="text-[10px] mt-1 text-gray-400">Ready for clinical assignment.</p>
+                    <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-amber-500 opacity-60 animate-pulse" />
+                    <p className="text-xs font-semibold">This bed is currently {selectedBed.status.toLowerCase()}.</p>
+                    <p className="text-[10px] mt-1 text-gray-400">Needs to be sanitized and marked available before assignment.</p>
                   </div>
                 )}
               </div>

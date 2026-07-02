@@ -1,14 +1,9 @@
 'use client';
-// ============================================================
-// Arogya AI Command Center — Medicine Inventory Intelligence
-// ============================================================
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Package, Trash2, Calendar, FileText, Activity, ArrowUpRight,
-  TrendingDown, TrendingUp, AlertTriangle, CheckCircle2, Truck,
-  FolderOpen, HelpCircle, RefreshCw, Send, ChevronLeft, ChevronRight,
-  ShieldCheck, Thermometer, Info, Sparkles
+  Package, FileText, Activity, TrendingDown, TrendingUp,
+  AlertTriangle, CheckCircle2, Truck, RefreshCw,
+  ChevronLeft, ChevronRight, ShieldCheck, Sparkles
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell
@@ -18,438 +13,425 @@ interface MedicineItem {
   id: string;
   name: string;
   sku: string;
-  category: 'Essential' | 'Antibiotic' | 'Vaccine' | 'Analgesic';
+  category: string;
   onHand: number;
   unit: string;
   percentage: number;
-  usage7d: number;
+  usagePerDay: number;
   trend: 'stable' | 'surge' | 'down';
   shelfLife: string;
   aiPrediction: string;
   status: 'in-stock' | 'low' | 'critical';
 }
 
+const MEDICINES: MedicineItem[] = [
+  {
+    id: '1', name: 'ORS Packets', sku: '#ORS-2024-XP', category: 'Essential',
+    onHand: 1240, unit: 'pkts', percentage: 85, usagePerDay: 180, trend: 'down',
+    shelfLife: 'Oct 2025', aiPrediction: 'Surplus likely', status: 'in-stock',
+  },
+  {
+    id: '2', name: 'Amoxicillin 250mg', sku: '#AMX-SYP-02', category: 'Antibiotic',
+    onHand: 42, unit: 'vials', percentage: 12, usagePerDay: 8, trend: 'surge',
+    shelfLife: '14 Days left', aiPrediction: 'Stockout Warning', status: 'critical',
+  },
+  {
+    id: '3', name: 'Covaxin Vial (5ml)', sku: '#CVX-009-MH', category: 'Vaccine',
+    onHand: 85, unit: 'units', percentage: 42, usagePerDay: 12, trend: 'stable',
+    shelfLife: 'Jan 2026', aiPrediction: 'Scheduled Restock', status: 'low',
+  },
+  {
+    id: '4', name: 'Paracetamol 500mg', sku: '#PCM-500-GP', category: 'Analgesic',
+    onHand: 420, unit: 'tabs', percentage: 24, usagePerDay: 110, trend: 'surge',
+    shelfLife: 'Aug 2025', aiPrediction: 'Depletion Alert', status: 'critical',
+  },
+  {
+    id: '5', name: 'Azithromycin 500mg', sku: '#AZI-500-XP', category: 'Antibiotic',
+    onHand: 600, unit: 'tabs', percentage: 75, usagePerDay: 34, trend: 'stable',
+    shelfLife: 'Nov 2025', aiPrediction: 'Optimal Stock', status: 'in-stock',
+  },
+  {
+    id: '6', name: 'Metformin 500mg', sku: '#MET-500-DM', category: 'Antidiabetic',
+    onHand: 320, unit: 'tabs', percentage: 55, usagePerDay: 22, trend: 'stable',
+    shelfLife: 'Mar 2026', aiPrediction: 'Optimal Stock', status: 'in-stock',
+  },
+];
+
+const FORECAST_DATA = [
+  { week: 'WK 1', demand: 420, isSurge: false },
+  { week: 'WK 2', demand: 580, isSurge: false },
+  { week: 'WK 3', demand: 850, isSurge: true },
+  { week: 'WK 4', demand: 510, isSurge: false },
+];
+
+const LOGISTICS = [
+  {
+    id: 'ax992', batch: 'Batch #AX-992 (PHC Rampur)', status: 'IN TRANSIT',
+    desc: 'Cold-chain medication (Insulin, Covaxin). Temperature maintained at 4.2°C.',
+    progress: 65, remaining: '12km left', statusColor: 'emerald',
+  },
+  {
+    id: 'wB', batch: 'Warehouse B - District Center', status: 'PACKING',
+    desc: 'Emergency replenishment for ORS and Paracetamol. Dispatch in 45m.',
+    progress: null, remaining: null, statusColor: 'orange',
+  },
+  {
+    id: 'tr441', batch: 'Batch #TR-441 - Delivered', status: 'DELIVERED',
+    desc: 'General antibiotics and gauze. Received by Dr. Mehra yesterday.',
+    progress: 100, remaining: null, statusColor: 'gray',
+  },
+];
+
 export default function InventoryTab() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItem, setSelectedItem] = useState<MedicineItem | null>(null);
+  const [query, setQuery] = useState('');
+  const [aiAccepted, setAiAccepted] = useState(false);
 
-  // Mock datasets matching HTML schema
-  const [medicines, setMedicines] = useState<MedicineItem[]>([
-    {
-      id: '1',
-      name: 'ORS Packets',
-      sku: 'ORS-2024-XP',
-      category: 'Essential',
-      onHand: 1240,
-      unit: 'pkts',
-      percentage: 85,
-      usage7d: 180,
-      trend: 'down',
-      shelfLife: 'Oct 2025',
-      aiPrediction: 'Surplus likely',
-      status: 'in-stock'
-    },
-    {
-      id: '2',
-      name: 'Amoxicillin 250mg',
-      sku: 'AMX-SYP-02',
-      category: 'Antibiotic',
-      onHand: 42,
-      unit: 'vials',
-      percentage: 12,
-      usage7d: 8,
-      trend: 'surge',
-      shelfLife: '14 Days left',
-      aiPrediction: 'Stockout Warning',
-      status: 'critical'
-    },
-    {
-      id: '3',
-      name: 'Covaxin Vial (5ml)',
-      sku: 'CVX-009-MH',
-      category: 'Vaccine',
-      onHand: 85,
-      unit: 'units',
-      percentage: 42,
-      usage7d: 12,
-      trend: 'stable',
-      shelfLife: 'Jan 2025',
-      aiPrediction: 'Scheduled Restock',
-      status: 'low'
-    },
-    {
-      id: '4',
-      name: 'Paracetamol 500mg',
-      sku: 'PCM-500-GP',
-      category: 'Analgesic',
-      onHand: 420,
-      unit: 'tablets',
-      percentage: 24,
-      usage7d: 110,
-      trend: 'surge',
-      shelfLife: 'Aug 2025',
-      aiPrediction: 'Depletion Alert',
-      status: 'critical'
-    },
-    {
-      id: '5',
-      name: 'Azithromycin 500mg',
-      sku: 'AZI-500-XP',
-      category: 'Antibiotic',
-      onHand: 600,
-      unit: 'tabs',
-      percentage: 75,
-      usage7d: 34,
-      trend: 'stable',
-      shelfLife: 'Nov 2025',
-      aiPrediction: 'Optimal Stock',
-      status: 'in-stock'
-    }
-  ]);
-
-  // Handle Search
-  const filteredMedicines = medicines.filter(
-    (med) =>
-      med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      med.sku.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = MEDICINES.filter(
+    (m) =>
+      m.name.toLowerCase().includes(query.toLowerCase()) ||
+      m.sku.toLowerCase().includes(query.toLowerCase())
   );
 
-  // Demand Forecast Chart Data
-  const forecastData = [
-    { name: 'WK 1', value: 420, expected: 400 },
-    { name: 'WK 2', value: 680, expected: 500 },
-    { name: 'WK 3', value: 850, expected: 650 },
-    { name: 'WK 4', value: 510, expected: 480 },
-  ];
+  const statusBar = (pct: number, status: MedicineItem['status']) => {
+    const color =
+      status === 'critical' ? 'bg-red-500' :
+      status === 'low' ? 'bg-amber-500' : 'bg-emerald-500';
+    return (
+      <div className="w-20 h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-full overflow-hidden mt-1.5">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    );
+  };
 
   return (
-    <div className="space-y-8 text-[#3a302a] dark:text-zinc-100">
-      
-      {/* Page Description */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-outline-variant/30 pb-4">
+    <div className="space-y-6">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-headline font-bold text-[#c2652a] dark:text-teal-400">Medicine Inventory Intelligence</h2>
-          <p className="text-xs text-on-surface-variant dark:text-gray-400 mt-1">Predictive logistics and stock optimization across PHC Rampur network.</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+            Medicine Inventory Intelligence
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Predictive logistics and stock optimization across PHC Rampur network
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-[#c2652a] hover:bg-[#a6501f] dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-slate-950 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md shadow-orange-500/10 cursor-pointer">
+        <div className="flex gap-2 shrink-0">
+          <button className="flex items-center gap-1.5 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-md shadow-teal-500/20">
             <Truck className="w-3.5 h-3.5" />
-            <span>Initiate Redistribution</span>
+            Initiate Redistribution
           </button>
-          <button className="px-4 py-2 border border-outline-variant/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-1.5 cursor-pointer">
+          <button className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 font-bold rounded-xl text-xs hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all">
             <FileText className="w-3.5 h-3.5" />
-            <span>Full Audit Report</span>
+            Audit Report
           </button>
         </div>
       </div>
 
-      {/* Bento Grid Top Section */}
-      <div className="grid grid-cols-12 gap-6">
-        
-        {/* Critical Shortage Alert Hero Card */}
-        <div className="col-span-12 lg:col-span-8 bg-[#f6f0e8] dark:bg-zinc-900/60 border border-outline-variant/40 dark:border-zinc-800/80 rounded-3xl p-6 shadow-sm relative overflow-hidden flex flex-col md:flex-row justify-between gap-6">
-          <div className="flex-1 space-y-4">
-            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400">
-              <AlertTriangle className="w-4 h-4" />
-              <span className="text-[10px] uppercase font-bold tracking-widest">Critical Shortage Alert</span>
-            </div>
-            <h3 className="text-2xl font-headline font-extrabold text-gray-900 dark:text-white">
-              Paracetamol 500mg - Stock Depletion in 48h
-            </h3>
-            <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-              Unusually high demand detected in 3 satellite clinics due to Dengue cluster. Projected deficit: 1,400 units by Friday.
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-outline-variant/40 dark:border-zinc-800/80">
-                <span className="text-[8px] uppercase font-bold text-gray-400">Current Stock</span>
-                <p className="text-lg font-bold mt-1 text-[#3a302a] dark:text-zinc-200">420 <span className="text-xs font-normal opacity-70">units</span></p>
-              </div>
-              <div className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-outline-variant/40 dark:border-zinc-800/80">
-                <span className="text-[8px] uppercase font-bold text-gray-400">Usage Rate</span>
-                <p className="text-lg font-bold text-rose-500 mt-1">+142% <span className="text-[9px] font-normal opacity-70">vs avg</span></p>
-              </div>
-              <div className="p-3 bg-white dark:bg-zinc-950 rounded-xl border border-outline-variant/40 dark:border-zinc-800/80">
-                <span className="text-[8px] uppercase font-bold text-gray-400">Transit Logs</span>
-                <p className="text-lg font-bold text-[#c2652a] dark:text-teal-400 mt-1">800 <span className="text-[9px] font-normal opacity-70">ETA 4h</span></p>
-              </div>
-            </div>
+      {/* ── Bento Top Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Critical Alert Card */}
+        <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-2 text-red-500 mb-3">
+            <AlertTriangle className="w-4 h-4" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Critical Shortage Alert</span>
           </div>
-          
-          {/* Circular SVG Gauge */}
-          <div className="w-full md:w-56 bg-white dark:bg-zinc-950 rounded-2xl p-5 border border-outline-variant/40 dark:border-zinc-800/80 flex flex-col items-center justify-center">
-            <div className="relative w-28 h-28 flex items-center justify-center">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+            Paracetamol 500mg — Stock Depletion in 48h
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Unusually high demand detected in 3 satellite clinics due to Dengue cluster.
+            Projected deficit: 1,400 units by Friday.
+          </p>
+
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {[
+              { label: 'Current Stock', value: '420', unit: 'units', color: 'text-gray-900 dark:text-white' },
+              { label: 'Usage Rate', value: '+142%', unit: 'vs avg', color: 'text-red-500' },
+              { label: 'In Transit', value: '800', unit: 'ETA 4h', color: 'text-teal-500' },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-gray-50 dark:bg-zinc-950 rounded-xl p-3 border border-gray-100 dark:border-zinc-800">
+                <p className="text-[9px] font-bold uppercase text-gray-400 mb-1">{stat.label}</p>
+                <p className={`text-lg font-bold ${stat.color}`}>
+                  {stat.value} <span className="text-[10px] font-normal opacity-70">{stat.unit}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Gauge */}
+          <div className="flex items-center gap-4 p-4 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-100 dark:border-red-900/30">
+            <div className="relative w-20 h-20 shrink-0">
               <svg className="w-full h-full -rotate-90">
-                <circle cx="56" cy="56" fill="transparent" r="48" stroke="#e6e0d6" strokeWidth="8" className="dark:stroke-zinc-800" />
-                <circle cx="56" cy="56" fill="transparent" r="48" stroke="#ef4444" strokeWidth="8" strokeDasharray="301.6" strokeDashoffset="240" strokeLinecap="round" />
+                <circle cx="40" cy="40" r="32" fill="none" stroke="#fecaca" strokeWidth="7" className="dark:stroke-red-950" />
+                <circle cx="40" cy="40" r="32" fill="none" stroke="#ef4444" strokeWidth="7"
+                  strokeDasharray="201.1" strokeDashoffset="177" strokeLinecap="round" />
               </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-                <span className="text-2xl font-bold text-rose-500">12%</span>
-                <span className="text-[8px] uppercase font-bold text-gray-400 mt-1">Safe Level</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-base font-bold text-red-500">12%</span>
+                <span className="text-[8px] font-bold text-gray-400 uppercase">Safe</span>
               </div>
             </div>
-            <p className="text-xs font-semibold text-rose-500 mt-4 text-center">Critical Reorder Triggered</p>
+            <div>
+              <p className="text-sm font-bold text-red-600 dark:text-red-400">Critical Reorder Triggered</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Emergency supplier notified. Expected restock in 4 hours.</p>
+            </div>
           </div>
         </div>
 
-        {/* AI Intelligence Widget */}
-        <div className="col-span-12 lg:col-span-4 bg-[#c2652a] dark:bg-zinc-900 text-white rounded-3xl p-6 shadow-sm border border-orange-600/20 dark:border-zinc-800 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
-            <Sparkles className="w-24 h-24" />
+        {/* AI Widget */}
+        <div className="bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl p-5 shadow-md shadow-teal-500/20 flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-teal-100" />
+            <h4 className="font-bold text-base">AI Redistribution Recs</h4>
           </div>
-          <div className="relative z-10 space-y-4">
-            <h4 className="text-lg font-headline font-bold flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-orange-200 dark:text-teal-400" />
-              AI Redistribution Recs
-            </h4>
-            <div className="space-y-3">
-              <div className="bg-white/10 dark:bg-zinc-950/60 p-3 rounded-xl border border-white/10 dark:border-zinc-800/50 backdrop-blur-sm">
-                <p className="text-[8px] font-black uppercase text-orange-200 dark:text-teal-400 tracking-wider">Path Optimization</p>
-                <p className="text-[11px] mt-1 leading-relaxed opacity-90">PHC Shajahanpur has **300% surplus** of ORS. Transferring 40 cases to Rampur today avoids waste and addresses 15% shortfall.</p>
-              </div>
-              <div className="bg-white/10 dark:bg-zinc-950/60 p-3 rounded-xl border border-white/10 dark:border-zinc-800/50 backdrop-blur-sm">
-                <p className="text-[8px] font-black uppercase text-orange-200 dark:text-teal-400 tracking-wider">Expiry Forecast</p>
-                <p className="text-[11px] mt-1 leading-relaxed opacity-90">240 Amoxicillin units expiring in <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase">14 DAYS</span>. Priority dispatch to Outpatient Dept recommended.</p>
-              </div>
+          <div className="space-y-3 flex-1">
+            <div className="bg-white/10 rounded-xl p-3 border border-white/15 backdrop-blur-sm">
+              <p className="text-[9px] font-black uppercase text-teal-200 tracking-wider mb-1">Path Optimization</p>
+              <p className="text-[11px] leading-relaxed opacity-90">
+                PHC Shajahanpur has <strong>300% surplus</strong> of ORS. Transferring 40 cases to Rampur avoids waste & covers 15% shortfall.
+              </p>
+            </div>
+            <div className="bg-white/10 rounded-xl p-3 border border-white/15 backdrop-blur-sm">
+              <p className="text-[9px] font-black uppercase text-teal-200 tracking-wider mb-1">Expiry Forecast</p>
+              <p className="text-[11px] leading-relaxed opacity-90">
+                240 Amoxicillin units expiring in{' '}
+                <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase">14 DAYS</span>.
+                Priority dispatch to Outpatient Dept recommended.
+              </p>
             </div>
           </div>
-          <button className="relative z-10 w-full mt-4 py-2 bg-white dark:bg-teal-500 hover:bg-gray-100 dark:hover:bg-teal-400 text-[#c2652a] dark:text-slate-950 font-bold rounded-xl text-xs cursor-pointer transition-all shadow-md">
-            Accept All Suggestions
+          <button
+            onClick={() => setAiAccepted(true)}
+            className={`mt-4 w-full py-2.5 font-bold rounded-xl text-xs transition-all ${
+              aiAccepted
+                ? 'bg-white/20 text-white cursor-default'
+                : 'bg-white text-teal-700 hover:bg-teal-50 cursor-pointer'
+            }`}
+          >
+            {aiAccepted ? '✓ Suggestions Accepted' : 'Accept All Suggestions'}
           </button>
         </div>
-
       </div>
 
-      {/* Live Stock Monitoring Table */}
-      <div className="bg-[#fcfaf6] dark:bg-zinc-900/40 border border-outline-variant/40 dark:border-zinc-800/80 rounded-3xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-outline-variant/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* ── Live Stock Table ── */}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h4 className="font-bold text-lg text-gray-950 dark:text-white">Live Stock Monitoring</h4>
-            <p className="text-[10px] text-gray-400">Stock indices refreshed across local networks</p>
+            <h4 className="font-bold text-gray-900 dark:text-white">Live Stock Monitoring</h4>
+            <p className="text-[10px] text-gray-400 mt-0.5">Real-time stock levels across PHC network</p>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">search</span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search drug inventory..."
-                className="bg-white dark:bg-zinc-950 border border-outline-variant/40 dark:border-zinc-800 rounded-xl pl-9 pr-4 py-1.5 text-xs w-48 focus:outline-none focus:border-[#c2652a] text-gray-800 dark:text-zinc-200"
-              />
-            </div>
-            <div className="flex gap-2">
-              <span className="flex items-center gap-1.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/15 px-2 py-1 rounded-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                In Stock
-              </span>
-              <span className="flex items-center gap-1.5 text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/15 px-2 py-1 rounded-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                Low
-              </span>
-              <span className="flex items-center gap-1.5 text-[9px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/15 px-2 py-1 rounded-lg">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                Critical
-              </span>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search drug or SKU..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-xs w-44 focus:outline-none focus:border-teal-500 text-gray-800 dark:text-zinc-200 transition-colors"
+            />
+            <div className="hidden sm:flex gap-2">
+              {[
+                { label: 'In Stock', color: 'bg-emerald-500' },
+                { label: 'Low', color: 'bg-amber-500' },
+                { label: 'Critical', color: 'bg-red-500' },
+              ].map((s) => (
+                <span key={s.label} className="flex items-center gap-1.5 text-[9px] font-bold text-gray-500 dark:text-gray-400">
+                  <span className={`w-2 h-2 rounded-full ${s.color}`} />
+                  {s.label}
+                </span>
+              ))}
             </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-[#f6f0e8]/50 dark:bg-zinc-950/40 text-gray-500 dark:text-zinc-400">
-              <tr>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider">Medicine / SKU</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider">On Hand</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider">Usage (7d)</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider">Shelf Life</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider">AI Prediction</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wider text-right">Actions</th>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50 dark:bg-zinc-950/60 border-b border-gray-100 dark:border-zinc-800">
+                {['Medicine / SKU', 'Category', 'On Hand', 'Usage / day', 'Shelf Life', 'AI Prediction', 'Action'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-[9px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/20 dark:divide-zinc-800/80">
-              {filteredMedicines.map((med) => (
-                <tr key={med.id} className="hover:bg-gray-50 dark:hover:bg-zinc-900/20 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-bold text-gray-900 dark:text-white text-xs">{med.name}</p>
+            <tbody className="divide-y divide-gray-50 dark:divide-zinc-800/80">
+              {filtered.map((med) => (
+                <tr key={med.id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                  <td className="px-4 py-3.5">
+                    <p className="font-bold text-xs text-gray-900 dark:text-white">{med.name}</p>
                     <p className="text-[9px] font-mono text-gray-400 mt-0.5">{med.sku}</p>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-0.5 border border-outline-variant/40 dark:border-zinc-850 bg-white dark:bg-zinc-900 rounded text-[9px] font-bold dark:text-gray-400">
+                  <td className="px-4 py-3.5">
+                    <span className="text-[9px] font-bold border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded px-1.5 py-0.5 text-gray-500 dark:text-gray-400">
                       {med.category}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <p className={`font-bold text-xs ${med.status === 'critical' ? 'text-rose-500' : 'text-gray-900 dark:text-white'}`}>
-                      {med.onHand.toLocaleString()} <span className="font-normal text-[10px] opacity-70">{med.unit}</span>
+                  <td className="px-4 py-3.5">
+                    <p className={`font-bold text-xs ${med.status === 'critical' ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                      {med.onHand.toLocaleString()} <span className="font-normal text-[10px] opacity-60">{med.unit}</span>
                     </p>
-                    <div className="w-20 h-1 bg-gray-200 dark:bg-zinc-800 rounded-full mt-2 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          med.status === 'critical' ? 'bg-rose-500' : med.status === 'low' ? 'bg-amber-500' : 'bg-emerald-500'
-                        }`}
-                        style={{ width: `${med.percentage}%` }}
-                      />
-                    </div>
+                    {statusBar(med.percentage, med.status)}
                   </td>
-                  <td className="px-6 py-4">
-                    <p className="text-xs font-semibold">{med.usage7d}/{med.unit.slice(0, 3)}/d</p>
-                    <p className={`text-[8px] font-bold flex items-center gap-0.5 mt-0.5 ${
-                      med.trend === 'surge' ? 'text-rose-500' : med.trend === 'down' ? 'text-emerald-500' : 'text-gray-400'
+                  <td className="px-4 py-3.5">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{med.usagePerDay}/day</p>
+                    <p className={`text-[9px] font-bold flex items-center gap-0.5 mt-0.5 ${
+                      med.trend === 'surge' ? 'text-red-500' : med.trend === 'down' ? 'text-emerald-500' : 'text-gray-400'
                     }`}>
-                      {med.trend === 'surge' ? <TrendingUp className="w-2.5 h-2.5" /> : med.trend === 'down' ? <TrendingDown className="w-2.5 h-2.5" /> : null}
+                      {med.trend === 'surge' && <TrendingUp className="w-2.5 h-2.5" />}
+                      {med.trend === 'down' && <TrendingDown className="w-2.5 h-2.5" />}
                       {med.trend === 'surge' ? 'Surge' : med.trend === 'down' ? 'Stable' : 'Average'}
                     </p>
                   </td>
-                  <td className={`px-6 py-4 text-xs ${med.status === 'critical' ? 'text-rose-500 font-bold' : ''}`}>
+                  <td className={`px-4 py-3.5 text-xs ${med.status === 'critical' ? 'text-red-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
                     {med.shelfLife}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3.5">
                     <span className={`text-[9px] font-bold py-0.5 px-2 rounded-full uppercase ${
                       med.aiPrediction.includes('Warning') || med.aiPrediction.includes('Alert')
-                        ? 'bg-rose-500/10 text-rose-500'
-                        : 'bg-[#c2652a]/10 dark:bg-teal-500/10 text-[#c2652a] dark:text-teal-400'
+                        ? 'bg-red-500/10 text-red-500'
+                        : 'bg-teal-500/10 text-teal-600 dark:text-teal-400'
                     }`}>
                       {med.aiPrediction}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <button className="text-[#c2652a] dark:text-teal-400 hover:underline font-bold text-[10px] tracking-tight cursor-pointer">
+                  <td className="px-4 py-3.5">
+                    <button className="text-teal-500 hover:text-teal-400 font-bold text-[10px] uppercase tracking-tight transition-colors cursor-pointer">
                       {med.status === 'critical' ? 'Emergency Order' : 'View Batch'}
                     </button>
                   </td>
                 </tr>
               ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-xs text-gray-400">
+                    No medicines match &quot;{query}&quot;
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        <div className="px-6 py-3.5 bg-[#f6f0e8]/30 dark:bg-zinc-950/20 border-t border-outline-variant/20 dark:border-zinc-800/80 flex justify-between items-center text-xs text-gray-500">
-          <p>Showing 1-{filteredMedicines.length} of 154 medicines</p>
-          <div className="flex gap-2">
-            <button className="p-1 border border-outline-variant/60 dark:border-zinc-800 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer">
+        <div className="px-5 py-3 bg-gray-50/50 dark:bg-zinc-950/30 border-t border-gray-100 dark:border-zinc-800 flex justify-between items-center">
+          <p className="text-[10px] text-gray-400">Showing {filtered.length} of {MEDICINES.length} medicines</p>
+          <div className="flex gap-1.5">
+            <button className="p-1 border border-gray-200 dark:border-zinc-800 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer">
               <ChevronLeft className="w-3.5 h-3.5 text-gray-400" />
             </button>
-            <button className="p-1 border border-outline-variant/60 dark:border-zinc-800 rounded bg-[#c2652a] dark:bg-teal-500 text-white dark:text-slate-950 hover:bg-[#a6501f] cursor-pointer">
+            <button className="p-1 border border-teal-500 rounded-lg bg-teal-500 text-white cursor-pointer">
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Forecasting and Supply chain logistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Demand Forecasting Graph */}
-        <div className="col-span-12 lg:col-span-7 bg-[#fcfaf6] dark:bg-zinc-900/40 border border-outline-variant/40 dark:border-zinc-800/80 rounded-3xl p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
+      {/* ── Forecast + Logistics ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+
+        {/* Demand Forecast Chart */}
+        <div className="col-span-12 lg:col-span-7 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-5 shadow-sm">
+          <div className="flex justify-between items-start mb-4">
             <div>
               <h4 className="font-bold text-gray-900 dark:text-white">Inventory Demand Forecast</h4>
               <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">AI-driven 30-Day Projection</p>
             </div>
-            <select className="bg-white dark:bg-zinc-950 border border-outline-variant/40 dark:border-zinc-800 text-xs font-bold rounded-lg px-2.5 py-1 text-gray-700 dark:text-zinc-200">
+            <select className="bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 text-xs font-semibold rounded-lg px-2.5 py-1.5 text-gray-700 dark:text-zinc-200 focus:outline-none focus:border-teal-500 cursor-pointer">
               <option>All Essential Drugs</option>
               <option>Anti-Pyretics</option>
               <option>Antibiotics</option>
             </select>
           </div>
-
-          <div className="h-56 w-full">
+          <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" className="dark:stroke-zinc-800/60" />
-                <XAxis dataKey="name" stroke="#9CA3AF" fontSize={10} tickLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={10} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#1F2937', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' }} />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]} name="Projected Demand">
-                  {forecastData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={index === 2 ? '#ef4444' : '#c2652a'} // Highlight projected surge in Week 3
-                    />
+              <BarChart data={FORECAST_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="week" tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
+                  cursor={{ fill: 'rgba(20,184,166,0.05)' }}
+                  formatter={(v: number) => [`${v} units`, 'Demand']}
+                />
+                <Bar dataKey="demand" radius={[4, 4, 0, 0]} name="Projected Demand">
+                  {FORECAST_DATA.map((entry, i) => (
+                    <Cell key={i} fill={entry.isSurge ? '#ef4444' : '#14b8a6'} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
-
-        {/* Logistics Supply Chain */}
-        <div className="col-span-12 lg:col-span-5 bg-[#fcfaf6] dark:bg-zinc-900/40 border border-outline-variant/40 dark:border-zinc-800/80 rounded-3xl p-6 shadow-sm space-y-4">
-          <h4 className="font-bold text-gray-900 dark:text-white">Logistics & Supply Chain</h4>
-          <div className="space-y-4">
-            
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-outline-variant/40 dark:border-zinc-800/80 flex items-center justify-center shrink-0">
-                <Truck className="w-5 h-5 text-[#c2652a] dark:text-teal-400" />
-              </div>
-              <div className="flex-1 space-y-1.5">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-950 dark:text-white">Batch #AX-992 (PHC Rampur)</span>
-                  <span className="text-[8px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/15 px-2 py-0.5 rounded">IN TRANSIT</span>
-                </div>
-                <p className="text-[10px] text-gray-400 leading-normal">Cold-chain insulin shipment. Temperature logged at 4.2°C.</p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#c2652a] dark:bg-teal-500 w-[65%]" />
-                  </div>
-                  <span className="text-[8px] font-bold shrink-0">12km left</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-outline-variant/40 dark:border-zinc-800/80 flex items-center justify-center shrink-0">
-                <Package className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-950 dark:text-white">Warehouse B - District Center</span>
-                  <span className="text-[8px] font-black bg-[#c2652a]/10 text-[#c2652a] dark:text-teal-400 border border-[#c2652a]/15 px-2 py-0.5 rounded">PACKING</span>
-                </div>
-                <p className="text-[10px] text-gray-400 leading-normal">Emergency replenishment for ORS and Paracetamol. Dispatch in 45m.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-4 opacity-50">
-              <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-950 border border-outline-variant/40 dark:border-zinc-800/80 flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-gray-400" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-950 dark:text-white">Batch #TR-441 - Delivered</span>
-                  <span className="text-[8px] font-black bg-gray-100 text-gray-400 border border-gray-200 px-2 py-0.5 rounded">DELIVERED</span>
-                </div>
-                <p className="text-[10px] text-gray-400 leading-normal">General antibiotics and gauze. Received by Dr. Mehra yesterday.</p>
-              </div>
-            </div>
-
+          <div className="flex items-center gap-4 mt-3 text-[9px] font-bold text-gray-400">
+            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-teal-500 inline-block" /> Normal</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-2 rounded bg-red-500 inline-block" /> Projected Surge</span>
           </div>
         </div>
 
+        {/* Logistics */}
+        <div className="col-span-12 lg:col-span-5 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-5 shadow-sm">
+          <h4 className="font-bold text-gray-900 dark:text-white mb-4">Logistics & Supply Chain</h4>
+          <div className="space-y-4">
+            {LOGISTICS.map((item) => {
+              const isDelivered = item.status === 'DELIVERED';
+              return (
+                <div key={item.id} className={`flex gap-3 ${isDelivered ? 'opacity-50' : ''}`}>
+                  <div className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-zinc-950 border border-gray-100 dark:border-zinc-800 flex items-center justify-center shrink-0">
+                    {isDelivered
+                      ? <CheckCircle2 className="w-4 h-4 text-gray-400" />
+                      : item.status === 'PACKING'
+                        ? <Package className="w-4 h-4 text-amber-500" />
+                        : <Truck className="w-4 h-4 text-teal-500" />
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2 mb-1">
+                      <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{item.batch}</p>
+                      <span className={`shrink-0 text-[8px] font-black px-2 py-0.5 rounded uppercase ${
+                        item.statusColor === 'emerald' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                        item.statusColor === 'orange' ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400' :
+                        'bg-gray-100 dark:bg-zinc-800 text-gray-400'
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 leading-relaxed">{item.desc}</p>
+                    {item.progress !== null && item.remaining && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex-1 h-1 bg-gray-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-teal-500 rounded-full" style={{ width: `${item.progress}%` }} />
+                        </div>
+                        <span className="text-[8px] font-bold text-gray-400 shrink-0">{item.remaining}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Sticky Bottom Health Mission Banner */}
-      <footer className="mt-8 border-t border-outline-variant/20 dark:border-zinc-850 bg-[#fbfaf8] dark:bg-zinc-950/40 p-4 rounded-3xl flex flex-wrap gap-6 justify-between items-center text-[10px] text-gray-500 font-medium">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[#c2652a] dark:text-teal-400" />
-          <span>Predict Problems before they happen</span>
-        </div>
-        <div className="w-px h-4 bg-gray-200 dark:bg-zinc-850" />
-        <div className="flex items-center gap-2">
-          <RefreshCw className="w-4 h-4 text-[#c2652a] dark:text-teal-400" />
-          <span>Optimize Resources & reduce waste</span>
-        </div>
-        <div className="w-px h-4 bg-gray-200 dark:bg-zinc-850" />
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-[#c2652a] dark:text-teal-400" />
-          <span>Improve Outcomes & patient care</span>
-        </div>
-        <div className="ml-auto italic font-headline text-[#3a302a] dark:text-zinc-200 text-sm flex items-center gap-1.5">
-          <span>Healthy Village, Healthy Nation</span>
-          <span className="material-symbols-outlined text-xs not-italic text-[#c2652a] dark:text-teal-400">sentiment_satisfied</span>
-        </div>
-      </footer>
+      {/* ── Footer Banner ── */}
+      <div className="bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-2xl p-4 flex flex-wrap gap-6 justify-between items-center shadow-sm">
+        {[
+          { icon: Activity, label: 'Predict Problems', sub: 'Before they happen' },
+          { icon: RefreshCw, label: 'Optimize Resources', sub: 'Reduce waste' },
+          { icon: ShieldCheck, label: 'Improve Outcomes', sub: 'Better patient care' },
+          { icon: Sparkles, label: 'Powered by AI', sub: 'Backed by data' },
+        ].map(({ icon: Icon, label, sub }) => (
+          <div key={label} className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-teal-500" />
+            <div>
+              <p className="text-[10px] font-bold text-gray-900 dark:text-white">{label}</p>
+              <p className="text-[9px] text-gray-400 uppercase tracking-wide">{sub}</p>
+            </div>
+          </div>
+        ))}
+        <p className="ml-auto italic text-sm text-gray-600 dark:text-gray-300 font-medium">
+          Healthy Village, Healthy Nation ✨
+        </p>
+      </div>
 
     </div>
   );

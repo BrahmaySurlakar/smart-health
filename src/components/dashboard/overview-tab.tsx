@@ -1,51 +1,169 @@
 'use client';
 // ============================================================
-// Arogya AI Command Center — Overview Tab
+// Arogya AI Command Center — Role-Based Command Review (Overview)
 // ============================================================
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useAuthStore } from '@/stores/auth-store';
 import {
   Users, Stethoscope, Bed, Pill, Clock, AlertTriangle, TrendingUp, Heart,
-  ArrowUpRight, ArrowDownRight, ChevronRight, CheckCircle2, AlertCircle, Sparkles
+  ArrowUpRight, ArrowDownRight, ChevronRight, CheckCircle2, AlertCircle, Sparkles,
+  ClipboardList, Activity, Star, Syringe, ShieldAlert, ListTodo, ShieldCheck, Database, Calendar
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
-  BarChart, Bar, Legend
+  BarChart, Bar, Cell
 } from 'recharts';
-import { generateKPIData, generateFootfallPredictions, generateAIInsights } from '@/data/generators';
+import { getRiskColor, getRiskBgColor } from '@/lib/utils';
 
-const ICON_MAP: Record<string, any> = {
-  Users: Users,
-  Stethoscope: Stethoscope,
-  Bed: Bed,
-  Pill: Pill,
-  Clock: Clock,
-  AlertTriangle: AlertTriangle,
-  TrendingUp: TrendingUp,
-  Heart: Heart,
-};
+interface OverviewTabProps {
+  onTabChange: (tab: string) => void;
+}
 
-export default function OverviewTab({ onTabChange }: { onTabChange: (tab: string) => void }) {
-  const kpis = generateKPIData();
-  const predictions = generateFootfallPredictions();
-  const insights = generateAIInsights().slice(0, 3); // top 3 insights
+export default function OverviewTab({ onTabChange }: OverviewTabProps) {
+  const { user } = useAuthStore();
+  const role = user?.role || 'doctor';
 
-  // Mock hourly data for the bar chart
-  const hourlyData = [
-    { hour: '08:00', patients: 12 },
-    { hour: '10:00', patients: 35 },
-    { hour: '12:00', patients: 28 },
-    { hour: '14:00', patients: 15 },
-    { hour: '16:00', patients: 22 },
-    { hour: '18:00', patients: 30 },
-    { hour: '20:00', patients: 8 },
+  // --- Mock Role-Specific Datasets ---
+
+  // 1. Medical Officer
+  const moKPIs = [
+    { label: 'OPD Expected Load', value: 156, change: 18, changeType: 'increase', icon: Users, color: '#0F766E' },
+    { label: 'Doctors Available', value: '8 / 12', change: -12, changeType: 'decrease', icon: Stethoscope, color: '#F59E0B' },
+    { label: 'ICU Bed Occupancy', value: '87%', change: 8, changeType: 'increase', icon: Bed, color: '#EF4444' },
+    { label: 'Facility Health Score', value: '87 / 100', change: 3, changeType: 'increase', icon: Sparkles, color: '#10B981' },
+  ];
+
+  // 2. Doctor
+  const doctorKPIs = [
+    { label: 'Assigned Cases Today', value: 28, change: 15, changeType: 'increase', icon: Users, color: '#0F766E' },
+    { label: 'Consulted Patients', value: 14, change: 100, changeType: 'increase', icon: CheckCircle2, color: '#10B981' },
+    { label: 'Avg Consult Time', value: '8 mins', change: -20, changeType: 'decrease', icon: Clock, color: '#14B8A6' },
+    { label: 'Practitioner Feedback', value: '4.8 / 5.0', change: 4, changeType: 'increase', icon: Star, color: '#F59E0B' },
+  ];
+
+  // 3. Nurse
+  const nurseKPIs = [
+    { label: 'General Ward Occupancy', value: '24 / 30', change: 5, changeType: 'increase', icon: Bed, color: '#F97316' },
+    { label: 'Beds Needing Cleaning', value: 3, change: 50, changeType: 'increase', icon: Activity, color: '#F59E0B' },
+    { label: 'Active Queue Waiting', value: 12, change: -15, changeType: 'decrease', icon: Clock, color: '#14B8A6' },
+    { label: 'Critical Vitals Alerts', value: 2, change: 100, changeType: 'increase', icon: AlertTriangle, color: '#EF4444' },
+  ];
+
+  // 4. Pharmacist
+  const pharmacistKPIs = [
+    { label: 'Dispensary Total Items', value: '14.2K', change: 2, changeType: 'increase', icon: Pill, color: '#0F766E' },
+    { label: 'Critical Stock Shortages', value: 2, change: -50, changeType: 'decrease', icon: AlertTriangle, color: '#EF4444' },
+    { label: 'Medicines Expiring soon', value: 3, change: 0, changeType: 'neutral', icon: Calendar, color: '#F59E0B' },
+    { label: 'Redistribution Savings', value: '₹20.2K', change: 12, changeType: 'increase', icon: Sparkles, color: '#10B981' },
+  ];
+
+  // 5. Lab Technician
+  const labKPIs = [
+    { label: 'Pending Test Samples', value: 8, change: 33, changeType: 'increase', icon: Activity, color: '#F59E0B' },
+    { label: 'Completed Lab Tests', value: 22, change: 15, changeType: 'increase', icon: CheckCircle2, color: '#10B981' },
+    { label: 'Critical Lab Results', value: 3, change: 200, changeType: 'increase', icon: AlertCircle, color: '#EF4444' },
+    { label: 'Lab Accuracy Index', value: '98%', change: 1, changeType: 'increase', icon: Sparkles, color: '#14B8A6' },
+  ];
+
+  // 6. ANM (Auxiliary Nurse Midwife)
+  const anmKPIs = [
+    { label: 'Vaccination Gaps (Chandpur)', value: 23, change: -15, changeType: 'decrease', icon: Syringe, color: '#EF4444' },
+    { label: 'Overdue Beneficiaries', value: 40, change: 5, changeType: 'increase', icon: Users, color: '#F59E0B' },
+    { label: 'High-Risk Pregnancies', value: 5, change: 25, changeType: 'increase', icon: Heart, color: '#EC4899' },
+    { label: 'Immunization Coverage', value: '82%', change: 4, changeType: 'increase', icon: Sparkles, color: '#10B981' },
+  ];
+
+  // 7. ASHA Worker
+  const ashaKPIs = [
+    { label: 'Active Village Hotspots', value: 3, change: 50, changeType: 'increase', icon: ShieldAlert, color: '#EF4444' },
+    { label: 'Suspected Dengue Cases', value: 14, change: 100, changeType: 'increase', icon: Activity, color: '#F59E0B' },
+    { label: 'Scheduled Home Visits', value: 6, change: 20, changeType: 'increase', icon: Calendar, color: '#14B8A6' },
+    { label: 'Outreach Compliance', value: '92%', change: 2, changeType: 'increase', icon: CheckCircle2, color: '#10B981' },
+  ];
+
+  // 8. Administrator
+  const adminKPIs = [
+    { label: 'Staff Attendance Rate', value: '94%', change: 2, changeType: 'increase', icon: Users, color: '#10B981' },
+    { label: 'Stress Burnout Warnings', value: '1 High', change: 0, changeType: 'neutral', icon: AlertTriangle, color: '#EF4444' },
+    { label: 'Background API Syncs', value: 'Active', change: 0, changeType: 'neutral', icon: Database, color: '#14B8A6' },
+    { label: 'Unresolved System Alerts', value: 4, change: 33, changeType: 'increase', icon: Clock, color: '#F59E0B' },
+  ];
+
+  // Get active role KPIs
+  const getRoleKPIs = () => {
+    switch (role) {
+      case 'medical_officer': return moKPIs;
+      case 'doctor': return doctorKPIs;
+      case 'nurse': return nurseKPIs;
+      case 'pharmacist': return pharmacistKPIs;
+      case 'lab_technician': return labKPIs;
+      case 'anm': return anmKPIs;
+      case 'asha_worker': return ashaKPIs;
+      case 'administrator': return adminKPIs;
+      default: return doctorKPIs;
+    }
+  };
+
+  const currentKPIs = getRoleKPIs();
+
+  // Get custom headers
+  const getHeaderTitle = () => {
+    switch (role) {
+      case 'medical_officer': return 'Medical Officer Command Review';
+      case 'doctor': return 'Clinical Practice & Consultations';
+      case 'nurse': return 'Nursing Ward & Triage Operations';
+      case 'pharmacist': return 'Dispensary Stock & Redistribution';
+      case 'lab_technician': return 'Laboratory Diagnostic Queue';
+      case 'anm': return 'Outreach & Vaccination Campaigns';
+      case 'asha_worker': return 'Community Health Surveillance';
+      case 'administrator': return 'System Settings & Operational Control';
+      default: return 'Command Review';
+    }
+  };
+
+  const getHeaderSubtitle = () => {
+    switch (role) {
+      case 'medical_officer': return 'Real-time catching analytics and predictive facility metrics.';
+      case 'doctor': return 'Active OPD diagnostic queue and patient feedback logs.';
+      case 'nurse': return 'Live bed map, sanitization status, and vitals checkups.';
+      case 'pharmacist': return 'Dispensary inventory levels, expirations, and inter-facility swaps.';
+      case 'lab_technician': return 'Pending test tubes, completed blood indices, and panic values.';
+      case 'anm': return 'Village coverage index, maternal cohorts, and vaccine mobilization.';
+      case 'asha_worker': return 'Catchment village tracking, vector clusters, and home visits.';
+      case 'administrator': return 'System logs, database synchronization, and threshold metrics.';
+      default: return 'Command operations panel.';
+    }
+  };
+
+  // --- Dynamic Chart Rendering ---
+  const chartData = [
+    { date: 'Mon', value: 34, expected: 40 },
+    { date: 'Tue', value: 56, expected: 45 },
+    { date: 'Wed', value: 45, expected: 50 },
+    { date: 'Thu', value: 80, expected: 65 },
+    { date: 'Fri', value: 72, expected: 70 },
+    { date: 'Sat', value: 20, expected: 25 },
+    { date: 'Sun', value: 12, expected: 15 },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Role-Specific Header */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm">
+        <h3 className="text-lg font-bold text-gray-950 dark:text-white flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-teal-500" />
+          {getHeaderTitle()}
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          {getHeaderSubtitle()}
+        </p>
+      </div>
+
       {/* Visual KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.slice(0, 8).map((kpi, idx) => {
-          const Icon = ICON_MAP[kpi.icon] || Users;
+        {currentKPIs.map((kpi, idx) => {
+          const Icon = kpi.icon;
           const isIncrease = kpi.changeType === 'increase';
           const isNeutral = kpi.changeType === 'neutral';
 
@@ -90,23 +208,24 @@ export default function OverviewTab({ onTabChange }: { onTabChange: (tab: string
 
       {/* Main Charts & Action Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Footfall Trend Area Chart */}
+        
+        {/* Customized Dynamic Chart (Recharts) */}
         <div className="lg:col-span-2 p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm flex flex-col gap-4">
           <div>
-            <h3 className="font-bold text-gray-950 dark:text-white text-lg">OPD Patient Footfall</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Weekly predictive model bounds vs actual load</p>
+            <h3 className="font-bold text-gray-950 dark:text-white text-lg">
+              {role === 'pharmacist' ? 'Dispensary Item Consumption' : role === 'doctor' ? 'OPD Consultations Handled' : 'Catchment Telemetry Trend'}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {role === 'pharmacist' ? 'Weekly drug dispense load' : role === 'doctor' ? 'Cases consulted vs daily benchmark' : 'Current metrics vs weekly expectations'}
+            </p>
           </div>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={predictions} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="predictedGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="valGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#0f766e" stopOpacity={0.2} />
                     <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="actualGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
@@ -123,130 +242,178 @@ export default function OverviewTab({ onTabChange }: { onTabChange: (tab: string
                 />
                 <Area
                   type="monotone"
-                  dataKey="predicted"
+                  dataKey="value"
                   stroke="#0f766e"
                   strokeWidth={2}
                   fillOpacity={1}
-                  fill="url(#predictedGrad)"
-                  name="AI Prediction"
+                  fill="url(#valGrad)"
+                  name={role === 'pharmacist' ? 'Dispensary Consumption' : 'Completed Work'}
                 />
                 <Area
                   type="monotone"
-                  dataKey="actual"
+                  dataKey="expected"
                   stroke="#22c55e"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#actualGrad)"
-                  name="Actual OPD Count"
+                  strokeWidth={1}
+                  strokeDasharray="4 4"
+                  fill="transparent"
+                  name="Expectation Target"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Hourly Flow Bar Chart */}
+        {/* Dynamic Action Checklist based on Role */}
         <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm flex flex-col justify-between gap-4">
           <div>
-            <h3 className="font-bold text-gray-950 dark:text-white text-lg">Hourly Load Distribution</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Peak consult hours tracking</p>
-          </div>
-          <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="hour" stroke="#9CA3AF" fontSize={10} tickLine={false} />
-                <YAxis stroke="#9CA3AF" fontSize={10} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontSize: '12px',
-                  }}
-                />
-                <Bar dataKey="patients" fill="#14b8a6" radius={[4, 4, 0, 0]} name="Patients" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="text-xs text-teal-600 dark:text-teal-400 bg-teal-500/10 p-3 rounded-xl border border-teal-500/20 font-medium flex items-start gap-2">
-            <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>OPD Peak detected between 10:00 AM and 12:00 PM. Recommend staging shifts.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* AI Decision Recommendations & Fast Shortcuts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* AI Action Items */}
-        <div className="lg:col-span-2 p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3">
             <h3 className="font-bold text-gray-950 dark:text-white text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-teal-500" />
-              AI Operational Actions
+              <ListTodo className="w-5 h-5 text-teal-500" />
+              Duty Checklist
             </h3>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded">
-              Ready
-            </span>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Action items assigned for today</p>
           </div>
-          <div className="space-y-4">
-            {insights.map((insight) => (
-              <div
-                key={insight.id}
-                className="p-4 rounded-2xl bg-gray-50 dark:bg-zinc-950/40 border border-gray-100 dark:border-zinc-800/80 flex flex-col gap-3"
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                      {insight.severity === 'critical' && <AlertCircle className="w-3.5 h-3.5 text-rose-500" />}
-                      {insight.title}
-                    </h4>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
-                      {insight.description}
-                    </p>
-                  </div>
-                  <span className="text-[10px] text-gray-400 shrink-0 font-medium">
-                    Conf: {insight.confidence}%
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5 pl-2 border-l border-teal-500/30">
-                  {insight.actionItems.slice(0, 2).map((action, i) => (
-                    <div key={i} className="text-[11px] text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                      <span>{action}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Quick Launch Panel */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 shadow-sm flex flex-col gap-4">
-          <h3 className="font-bold text-gray-950 dark:text-white text-lg">Command Shortcuts</h3>
-          <div className="grid grid-cols-1 gap-2.5">
-            {[
-              { label: 'Register New Patient', tab: 'Patients', desc: 'Add OPD intake' },
-              { label: 'Verify Lab Reports', tab: 'Reports', desc: 'Review abnormal results' },
-              { label: 'Redistribute Amoxicillin', tab: 'Pharmacy', desc: 'Execute stock transfers' },
-              { label: 'Manage ICU Beds', tab: 'Wards & Beds', desc: 'Discharge or assign patients' },
-              { label: 'Outbreak Hotspots', tab: 'Surveillance', desc: 'Check vector surveillance map' },
-            ].map((shortcut) => (
-              <button
-                key={shortcut.label}
-                onClick={() => onTabChange(shortcut.tab)}
-                className="p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 text-left hover:border-teal-500/40 dark:hover:border-teal-500/40 hover:bg-teal-500/[0.02] dark:hover:bg-teal-500/[0.01] transition-all duration-200 cursor-pointer flex items-center justify-between group"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 group-hover:text-teal-600 dark:group-hover:text-teal-400">
-                    {shortcut.label}
-                  </div>
-                  <div className="text-[10px] text-gray-500 mt-0.5">{shortcut.desc}</div>
+          <div className="flex-1 space-y-2 mt-2">
+            {role === 'medical_officer' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Authorize inter-facility ORS transfer</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-teal-500 transform group-hover:translate-x-0.5 transition-all" />
-              </button>
-            ))}
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Review Dengue cluster vector map</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Call backup doctor to cover General OPD</span>
+                </div>
+              </>
+            )}
+
+            {role === 'doctor' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Summon next waiting patient from queue</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Inspect patient clinical vitals twin</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Record prescriptions for completed visits</span>
+                </div>
+              </>
+            )}
+
+            {role === 'nurse' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Audit vitals check for ICU beds</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Mark vacated beds as Sanitized</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Log triage priority for incoming patients</span>
+                </div>
+              </>
+            )}
+
+            {role === 'pharmacist' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Accept inter-facility ORS stock transfer</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Audit expiring drugs batch number</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Prepare monthly medicine consumption log</span>
+                </div>
+              </>
+            )}
+
+            {role === 'lab_technician' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Submit completed CBC results</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Audit abnormal platelet levels</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Input rapid diagnostic test files</span>
+                </div>
+              </>
+            )}
+
+            {role === 'anm' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Check maternal pregnancy cohort list</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Schedule Chandpur local vaccination drive</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Broadcast SMS reminders to village mothers</span>
+                </div>
+              </>
+            )}
+
+            {role === 'asha_worker' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Identify dengue suspected patients</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Complete scheduled home checkups</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Alert ANM of vaccine overdue children</span>
+                </div>
+              </>
+            )}
+
+            {role === 'administrator' && (
+              <>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-teal-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Audit staff attendance record logs</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Review system alert thresholds</span>
+                </div>
+                <div className="p-2.5 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/40 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-[10px] text-gray-700 dark:text-gray-300">Test backup generator synchronisation</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="text-[10px] text-teal-600 dark:text-teal-400 bg-teal-500/10 p-3 rounded-xl border border-teal-500/20 font-medium flex items-center justify-between">
+            <span>Actions synced with local unit</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </div>
         </div>
       </div>

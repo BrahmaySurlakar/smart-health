@@ -11,7 +11,9 @@ import {
   Users, UserCheck, ShieldCheck, HeartPulse, ChevronRight, Fingerprint, ChevronLeft
 } from 'lucide-react';
 
-const ROLE_ICONS: Record<UserRole, any> = {
+import { LucideIcon } from 'lucide-react';
+
+const ROLE_ICONS: Record<UserRole, LucideIcon> = {
   medical_officer: ShieldCheck,
   doctor: Stethoscope,
   nurse: HeartPulse,

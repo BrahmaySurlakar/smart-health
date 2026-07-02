@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
 import LoginScreen from '@/components/auth/login-screen';
 import DashboardShell from '@/components/dashboard/dashboard-shell';
@@ -10,9 +10,12 @@ export default function Home() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [mounted, setMounted] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
-    setMounted(true);
+    startTransition(() => {
+      setMounted(true);
+    });
   }, []);
 
   if (!mounted) {

@@ -2,7 +2,7 @@
 // ============================================================
 // Arogya AI Command Center — Main Dashboard Shell
 // ============================================================
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles, Stethoscope, Pill, ClipboardList, Activity,
@@ -128,13 +128,19 @@ export default function DashboardShell() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [roleSwitcherOpen, setRoleSwitcherOpen] = useState(false);
 
-  // Compute allowed tabs based on role
-  const allowedTabs = user ? ROLE_PERMISSIONS[user.role] : [];
+  // Compute allowed tabs based on role — memoized to avoid unstable reference
+  const allowedTabs = useMemo(
+    () => (user ? ROLE_PERMISSIONS[user.role] : []),
+    [user]
+  );
+  const [, startTabTransition] = useTransition();
 
   // Redirect if current active tab is not allowed for the selected role
   useEffect(() => {
     if (user && !allowedTabs.includes(activeTab)) {
-      setActiveTab(allowedTabs[0] || 'Overview');
+      startTabTransition(() => {
+        setActiveTab(allowedTabs[0] || 'Overview');
+      });
     }
   }, [user, activeTab, allowedTabs]);
 

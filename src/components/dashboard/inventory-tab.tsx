@@ -4,11 +4,11 @@ import {
   Package, FileText, Activity, TrendingDown, TrendingUp, X,
   AlertTriangle, CheckCircle2, Truck, RefreshCw, Send,
   ChevronLeft, ChevronRight, ShieldCheck, Sparkles,
-  ClipboardList, ArrowRight, Download, Printer, Info
+  ArrowRight, Download, Printer, Info
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip,
-  CartesianGrid, Cell, LineChart, Line, Legend
+  CartesianGrid, Cell, Legend
 } from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -211,8 +211,12 @@ function EmergencyOrderModal({ med, onClose }: { med: MedicineItem; onClose: () 
   const [supplier, setSupplier] = useState(med.supplier);
   const [notes, setNotes] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [orderRef, setOrderRef] = useState('');
 
-  const handleSubmit = () => setSubmitted(true);
+  const handleSubmit = () => {
+    setOrderRef(`EMG-${String(Date.now()).slice(-6)}`);
+    setSubmitted(true);
+  };
 
   if (submitted) {
     return (
@@ -229,7 +233,7 @@ function EmergencyOrderModal({ med, onClose }: { med: MedicineItem; onClose: () 
           </div>
           <div className="bg-gray-50 dark:bg-zinc-950 rounded-xl p-4 text-left space-y-2">
             {[
-              ['Order Ref', `EMG-${Date.now().toString().slice(-6)}`],
+              ['Order Ref', orderRef],
               ['Medicine', med.name],
               ['Quantity', `${qty} ${med.unit}`],
               ['Priority', priority.toUpperCase()],

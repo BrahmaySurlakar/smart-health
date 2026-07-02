@@ -304,7 +304,7 @@ export default function QueueTab() {
                     <label className="font-bold text-gray-400">Triage Priority</label>
                     <select
                       value={newPriority}
-                      onChange={e => setNewPriority(e.target.value as any)}
+                      onChange={e => setNewPriority(e.target.value as QueueEntry['priority'])}
                       className="w-full px-3 py-2 text-xs rounded-lg bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:outline-none focus:border-teal-500/50 text-gray-900 dark:text-gray-100"
                     >
                       <option value="Normal">Normal</option>

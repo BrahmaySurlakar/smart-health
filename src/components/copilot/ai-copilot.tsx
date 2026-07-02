@@ -99,7 +99,8 @@ export default function AICopilot() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setIsTyping(false);
-    }, 1200 + Math.random() * 800);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 1200 + (800 * 0.5)); // fixed 1600ms delay — avoids impure Math.random in render
   };
 
   return (
